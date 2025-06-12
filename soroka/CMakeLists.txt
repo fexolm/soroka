@@ -1,0 +1,1 @@
+add_library(soroka SHARED foo.cpp)

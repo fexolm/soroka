@@ -1,0 +1,21 @@
+{
+	"name": "soroka devcontainer",
+	"build": {
+		"context": "..",
+		"dockerfile": "../Dockerfile"
+	},
+	"mounts": [
+		"source=soroka-home,target=/home,type=volume"
+	],
+	"containerUser": "soroka",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.cpptools",
+				"llvm-vs-code-extensions.vscode-clangd",
+				"ms-vscode.cmake-tools",
+				"twxs.cmake"
+			]
+		}
+	}
+}

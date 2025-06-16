@@ -1,2 +1,2 @@
-add_subdirectory(plugin)
-add_subdirectory(runtime)
+add_subdirectory(Plugin)
+add_subdirectory(Runtime)

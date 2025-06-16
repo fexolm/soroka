@@ -1,104 +1,91 @@
-#include <clang/AST/ASTConsumer.h>
-#include <clang/AST/RecursiveASTVisitor.h>
-#include <clang/Basic/SourceLocation.h>
-#include <clang/Basic/SourceManager.h>
-#include <clang/CodeGen/BackendUtil.h>
-#include <clang/CodeGen/CodeGenAction.h>
-#include <clang/CodeGen/ModuleBuilder.h>
-#include <clang/Frontend/CompilerInstance.h>
-#include <clang/Frontend/FrontendPluginRegistry.h>
-#include <clang/Tooling/Tooling.h>
+//===- LLVMPrintFunctionNames.cpp
+//---------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Example clang plugin which simply prints the names of all the functions
+// within the generated LLVM code.
+//
+//===----------------------------------------------------------------------===//
+
+#include "clang/AST/AST.h"
+#include "clang/AST/ASTConsumer.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/FrontendPluginRegistry.h"
+#include "clang/Sema/Sema.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Passes/OptimizationLevel.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Support/raw_ostream.h"
+#include <llvm-20/llvm/ADT/APInt.h>
 #include <llvm-20/llvm/IR/Constant.h>
-#include <llvm-20/llvm/IR/DerivedTypes.h>
 #include <llvm-20/llvm/IR/GlobalVariable.h>
-#include <llvm-20/llvm/Support/MemoryBufferRef.h>
-#include <llvm-20/llvm/Support/SourceMgr.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IRReader/IRReader.h>
-#include <memory>
+#include <llvm-20/llvm/IR/IRBuilder.h>
+#include <llvm-20/llvm/IR/Instructions.h>
+#include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/Type.h>
+using namespace clang;
 
-namespace soroka {
+namespace {
 
-class EmbedIrVisitor : public clang::RecursiveASTVisitor<EmbedIrVisitor> {
+class PrintPass final : public llvm::AnalysisInfoMixin<PrintPass> {
+  friend struct llvm::AnalysisInfoMixin<PrintPass>;
+
 public:
-  EmbedIrVisitor(clang::CompilerInstance &CI, llvm::StringRef ModuleName)
-      : CI(CI) {}
+  using Result = llvm::PreservedAnalyses;
 
-  bool VisitFunctionDecl(clang::FunctionDecl *F) { return true; }
+  Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+    llvm::IntegerType *T = llvm::IntegerType::get(M.getContext(), 32);
 
-private:
-  clang::CompilerInstance &CI;
-  llvm::LLVMContext C;
+    llvm::Constant *V =
+        llvm::Constant::getIntegerValue(T, llvm::APInt(32, 100500));
+
+    llvm::GlobalVariable *GV = M.getGlobalVariable("kek");
+    GV->setInitializer(V);
+
+    M.dump();
+
+    return llvm::PreservedAnalyses::none();
+  }
+  static bool isRequired() { return true; }
 };
 
-class EmbedIrASTConsumer : public clang::ASTConsumer {
+void PrintCallback(llvm::PassBuilder &PB) {
+  PB.registerPipelineStartEPCallback(
+      [](llvm::ModulePassManager &MPM, llvm::OptimizationLevel) {
+        MPM.addPass(PrintPass());
+      });
+}
+
+class LLVMPrintFunctionsConsumer : public ASTConsumer {
 public:
-  EmbedIrASTConsumer(clang::CompilerInstance &CI, llvm::StringRef ModuleName)
-      : CI(CI), Visitor(CI, ModuleName) {}
-
-  std::unique_ptr<llvm::Module> getMainModule() {
-    clang::SourceManager &SM = CI.getSourceManager();
-    clang::FileID FID = SM.getMainFileID();
-
-    std::optional<llvm::MemoryBufferRef> MainFile = SM.getBufferOrNone(FID);
-
-    if (!MainFile) {
-      return nullptr;
-    }
-
-    llvm::SMDiagnostic SMD;
-
-    llvm::LLVMContext C;
-
-    std::unique_ptr<llvm::Module> M = llvm::parseIR(*MainFile, SMD, C);
-
-    llvm::errs() << "file: " << MainFile->getBuffer() << "!!";
-
-    SMD.print("soroka", llvm::errs());
-
-    return M;
+  LLVMPrintFunctionsConsumer(CompilerInstance &Instance) {
+    Instance.getCodeGenOpts().PassBuilderCallbacks.push_back(PrintCallback);
   }
-
-  void HandleTranslationUnit(clang::ASTContext &Ctx) override {
-    Visitor.TraverseDecl(Ctx.getTranslationUnitDecl());
-
-    std::unique_ptr<llvm::Module> MainModule = getMainModule();
-
-    if (!MainModule) {
-      llvm::errs() << "Module is null\n";
-      return;
-    }
-
-    MainModule->dump();
-  }
-
-private:
-  clang::CompilerInstance &CI;
-  EmbedIrVisitor Visitor;
 };
 
-class EmbedIrAction : public clang::PluginASTAction {
-public:
-  std::unique_ptr<clang::ASTConsumer>
-  CreateASTConsumer(clang::CompilerInstance &CI,
-                    llvm::StringRef InFile) override {
-    std::string ModuleName = "jit:" + InFile.str();
-    return std::unique_ptr<clang::ASTConsumer>(
-        std::make_unique<EmbedIrASTConsumer>(CI, ModuleName));
+class LLVMPrintFunctionNamesAction : public PluginASTAction {
+protected:
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 llvm::StringRef) override {
+    return std::make_unique<LLVMPrintFunctionsConsumer>(CI);
   }
-
-  bool ParseArgs(const clang::CompilerInstance &CI,
-                 const std::vector<std::string> &arg) override {
+  bool ParseArgs(const CompilerInstance &,
+                 const std::vector<std::string> &) override {
     return true;
   }
-
-  ActionType getActionType() override { return AddAfterMainAction; }
-
-  bool hasIRSupport() const override { return true; }
+  PluginASTAction::ActionType getActionType() override {
+    return AddBeforeMainAction;
+  }
 };
-} // namespace soroka
 
-static clang::FrontendPluginRegistry::Add<soroka::EmbedIrAction>
-    X(/*Name=*/"embed-ir",
-      /*Description=*/"Embed jitted functions IR to binary");
+} // namespace
+
+static FrontendPluginRegistry::Add<LLVMPrintFunctionNamesAction>
+    X("llvm-print-fns", "print function names, llvm level");

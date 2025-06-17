@@ -35,7 +35,7 @@
 
 using namespace clang;
 
-namespace {
+namespace soroka {
 
 class PrintPass final : public llvm::AnalysisInfoMixin<PrintPass> {
   friend struct llvm::AnalysisInfoMixin<PrintPass>;
@@ -91,7 +91,7 @@ protected:
   }
 };
 
-} // namespace
+} // namespace soroka
 
 static const FrontendPluginRegistry::Add<EmbedIrAction>
     X("llvm-print-fns", "print function names, llvm level");

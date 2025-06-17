@@ -1,3 +1,3 @@
 ```
-clang++ -fplugin=build/lib/plugin/libsoroka_plugin.so examples/main.cpp
+clang++ -fplugin=build/lib/Plugin/libsoroka_plugin.so examples/main.cpp
 ```

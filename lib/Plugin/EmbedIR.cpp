@@ -35,7 +35,7 @@
 
 using namespace clang;
 
-namespace {
+namespace soroka {
 
 class PrintPass final : public llvm::AnalysisInfoMixin<PrintPass> {
   friend struct llvm::AnalysisInfoMixin<PrintPass>;
@@ -66,18 +66,21 @@ void PrintCallback(llvm::PassBuilder &PB) {
       });
 }
 
-class LLVMPrintFunctionsConsumer : public ASTConsumer {
+class EmbedIrASTConsumer : public ASTConsumer {
 public:
-  LLVMPrintFunctionsConsumer(CompilerInstance &Instance) {
-    Instance.getCodeGenOpts().PassBuilderCallbacks.push_back(PrintCallback);
+  EmbedIrASTConsumer(CompilerInstance &Instance) : CI(Instance) {
+    CI.getCodeGenOpts().PassBuilderCallbacks.push_back(PrintCallback);
   }
+
+private:
+  clang::CompilerInstance &CI;
 };
 
-class LLVMPrintFunctionNamesAction : public PluginASTAction {
+class EmbedIrAction : public PluginASTAction {
 protected:
   std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
                                                  llvm::StringRef) override {
-    return std::make_unique<LLVMPrintFunctionsConsumer>(CI);
+    return std::make_unique<EmbedIrASTConsumer>(CI);
   }
   bool ParseArgs(const CompilerInstance &,
                  const std::vector<std::string> &) override {
@@ -88,7 +91,8 @@ protected:
   }
 };
 
-} // namespace
+} // namespace soroka
 
-static const FrontendPluginRegistry::Add<LLVMPrintFunctionNamesAction>
-    X("llvm-print-fns", "print function names, llvm level");
+static const FrontendPluginRegistry::Add<soroka::EmbedIrAction>
+    X(/*Name=*/"embed-ir",
+      /*Description=*/"Embed jitted functions IR to binary");

@@ -93,5 +93,5 @@ protected:
 
 } // namespace soroka
 
-static const FrontendPluginRegistry::Add<EmbedIrAction>
+static const FrontendPluginRegistry::Add<soroka::EmbedIrAction>
     X("llvm-print-fns", "print function names, llvm level");

@@ -12,24 +12,27 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/AST/AST.h"
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/FrontendPluginRegistry.h"
-#include "clang/Sema/Sema.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/Passes/OptimizationLevel.h"
-#include "llvm/Passes/PassBuilder.h"
-#include "llvm/Support/raw_ostream.h"
+#include <clang/AST/ASTConsumer.h>
+#include <clang/Frontend/CompilerInstance.h>
+#include <clang/Frontend/FrontendAction.h>
+#include <clang/Frontend/FrontendPluginRegistry.h>
+#include <clang/Sema/Sema.h>
 #include <llvm-20/llvm/ADT/APInt.h>
 #include <llvm-20/llvm/IR/Constant.h>
 #include <llvm-20/llvm/IR/GlobalVariable.h>
 #include <llvm-20/llvm/IR/IRBuilder.h>
 #include <llvm-20/llvm/IR/Instructions.h>
+#include <llvm/IR/Analysis.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
+#include <llvm/Passes/OptimizationLevel.h>
+#include <llvm/Passes/PassBuilder.h>
+#include <memory>
+#include <string>
+#include <vector>
+
 using namespace clang;
 
 namespace {
@@ -87,5 +90,5 @@ protected:
 
 } // namespace
 
-static FrontendPluginRegistry::Add<LLVMPrintFunctionNamesAction>
+static const FrontendPluginRegistry::Add<LLVMPrintFunctionNamesAction>
     X("llvm-print-fns", "print function names, llvm level");

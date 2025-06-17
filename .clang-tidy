@@ -1,0 +1,9 @@
+Checks:
+# enabled checks
+- clang-analyzer-*
+- clang-diagnostic-*
+- cppcoreguidelines-*
+- misc-include-cleaner
+
+# disabled checks
+- -cppcoreguidelines-avoid-magic-numbers

@@ -13,47 +13,63 @@
 //===----------------------------------------------------------------------===//
 
 #include <clang/AST/ASTConsumer.h>
+#include <clang/CodeGen/BackendUtil.h>
+#include <clang/CodeGen/CodeGenAction.h>
+#include <clang/CodeGen/ModuleBuilder.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Frontend/FrontendPluginRegistry.h>
 #include <clang/Sema/Sema.h>
+// #include <cstddef> // for size_t
+#include <cstdint>
 #include <llvm-20/llvm/ADT/APInt.h>
 #include <llvm-20/llvm/IR/Constant.h>
+#include <llvm-20/llvm/IR/Constants.h>
 #include <llvm-20/llvm/IR/GlobalVariable.h>
 #include <llvm-20/llvm/IR/IRBuilder.h>
 #include <llvm-20/llvm/IR/Instructions.h>
+// #include <llvm-20/llvm/Support/MemoryBuffer.h>
+// #include <llvm-20/llvm/Support/MemoryBufferRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Analysis.h>
+#include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/Support/raw_ostream.h>
 #include <memory>
 #include <string>
 #include <vector>
 
-using namespace clang;
-
 namespace soroka {
 
-class PrintPass final : public llvm::AnalysisInfoMixin<PrintPass> {
-  friend struct llvm::AnalysisInfoMixin<PrintPass>;
+class EmbedIRPass final : public llvm::AnalysisInfoMixin<EmbedIRPass> {
+  friend struct llvm::AnalysisInfoMixin<EmbedIRPass>;
 
 public:
   using Result = llvm::PreservedAnalyses;
 
   Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
-    llvm::IntegerType *T = llvm::IntegerType::get(M.getContext(), 32);
-
-    llvm::Constant *V =
-        llvm::Constant::getIntegerValue(T, llvm::APInt(32, 100500));
-
+    std::string Data;
+    llvm::raw_string_ostream OS(Data);
+    llvm::WriteBitcodeToFile(M, OS, /* ShouldPreserveUseListOrder */ true);
+    llvm::ArrayRef<uint8_t> ModuleData = llvm::ArrayRef<uint8_t>(
+        (const uint8_t *)OS.str().data(), OS.str().size());
+    llvm::Constant *V = llvm::Constant::getIntegerValue(
+        llvm::IntegerType::get(M.getContext(), 32),
+        llvm::APInt(32, ModuleData.size()));
     llvm::GlobalVariable *GV = M.getGlobalVariable("kek");
     GV->setInitializer(V);
+    llvm::outs() << "Kek: " << ModuleData.size() << " bytes\n";
 
-    M.dump();
-
+    llvm::GlobalVariable *GV2 = M.getGlobalVariable("kek_bytes");
+    llvm::Constant *ModuleConstant =
+        llvm::ConstantDataArray::get(M.getContext(), ModuleData);
+    GV2->setInitializer(ModuleConstant);
     return llvm::PreservedAnalyses::none();
   }
   static bool isRequired() { return true; }
@@ -62,27 +78,30 @@ public:
 void PrintCallback(llvm::PassBuilder &PB) {
   PB.registerPipelineStartEPCallback(
       [](llvm::ModulePassManager &MPM, llvm::OptimizationLevel) {
-        MPM.addPass(PrintPass());
+        MPM.addPass(EmbedIRPass());
       });
 }
 
-class EmbedIrASTConsumer : public ASTConsumer {
+class EmbedIrASTConsumer : public clang::ASTConsumer {
 public:
-  EmbedIrASTConsumer(CompilerInstance &Instance) : CI(Instance) {
+  EmbedIrASTConsumer(clang::CompilerInstance &Instance) : CI(Instance) {
     CI.getCodeGenOpts().PassBuilderCallbacks.push_back(PrintCallback);
   }
+
+  EmbedIrASTConsumer(const EmbedIrASTConsumer &) = delete;
 
 private:
   clang::CompilerInstance &CI;
 };
 
-class EmbedIrAction : public PluginASTAction {
+class EmbedIrAction : public clang::PluginASTAction {
 protected:
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 llvm::StringRef) override {
+  std::unique_ptr<clang::ASTConsumer>
+  CreateASTConsumer(clang::CompilerInstance &CI, llvm::StringRef) override {
     return std::make_unique<EmbedIrASTConsumer>(CI);
   }
-  bool ParseArgs(const CompilerInstance &,
+
+  bool ParseArgs(const clang::CompilerInstance &,
                  const std::vector<std::string> &) override {
     return true;
   }
@@ -93,6 +112,6 @@ protected:
 
 } // namespace soroka
 
-static const FrontendPluginRegistry::Add<soroka::EmbedIrAction>
+static const clang::FrontendPluginRegistry::Add<soroka::EmbedIrAction>
     X(/*Name=*/"embed-ir",
       /*Description=*/"Embed jitted functions IR to binary");

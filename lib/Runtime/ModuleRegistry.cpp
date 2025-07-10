@@ -16,4 +16,8 @@ void ModuleRegistry::registerFunction(void *Ptr, const char *Name) {
   NameByFuncPtr[Ptr] = Name;
 }
 
+extern "C" void soroka_register_module(void *Ptr, const char *Name) {
+  ModuleRegistry::get().registerFunction(Ptr, Name);
+}
+
 } // namespace soroka

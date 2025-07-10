@@ -20,7 +20,6 @@
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Frontend/FrontendPluginRegistry.h>
 #include <clang/Sema/Sema.h>
-// #include <cstddef> // for size_t
 #include <cstdint>
 #include <llvm-20/llvm/ADT/APInt.h>
 #include <llvm-20/llvm/IR/Constant.h>
@@ -28,8 +27,6 @@
 #include <llvm-20/llvm/IR/GlobalVariable.h>
 #include <llvm-20/llvm/IR/IRBuilder.h>
 #include <llvm-20/llvm/IR/Instructions.h>
-// #include <llvm-20/llvm/Support/MemoryBuffer.h>
-// #include <llvm-20/llvm/Support/MemoryBufferRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Analysis.h>
@@ -75,9 +72,38 @@ public:
   static bool isRequired() { return true; }
 };
 
+class RegisterModulePass final
+    : public llvm::AnalysisInfoMixin<RegisterModulePass> {
+  friend struct llvm::AnalysisInfoMixin<RegisterModulePass>;
+
+public:
+  using Result = llvm::PreservedAnalyses;
+
+  Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+    llvm::StringRef Name = "soroka_register_module";
+    if (M.getFunction(Name) != nullptr) {
+      return llvm::PreservedAnalyses::none();
+    }
+
+    llvm::LLVMContext &C = M.getContext();
+    llvm::Type *Void = llvm::Type::getVoidTy(C);
+    llvm::PointerType *VoidPtr = llvm::PointerType::get(C, 0);
+    llvm::PointerType *CharPtr =
+        llvm::PointerType::get(llvm::Type::getInt8Ty(C), 0);
+    llvm::FunctionType *FTy =
+        llvm::FunctionType::get(Void, {VoidPtr, CharPtr}, false);
+    llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
+    M.dump();
+    return llvm::PreservedAnalyses::none();
+  }
+
+  static bool isRequired() { return true; }
+};
+
 void PrintCallback(llvm::PassBuilder &PB) {
   PB.registerPipelineStartEPCallback(
       [](llvm::ModulePassManager &MPM, llvm::OptimizationLevel) {
+        MPM.addPass(RegisterModulePass());
         MPM.addPass(EmbedIRPass());
       });
 }

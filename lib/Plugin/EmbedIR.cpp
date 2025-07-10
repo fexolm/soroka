@@ -31,13 +31,13 @@
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Analysis.h>
 #include <llvm/IR/DerivedTypes.h>
-#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Transforms/Utils/ModuleUtils.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -51,22 +51,45 @@ public:
   using Result = llvm::PreservedAnalyses;
 
   Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+
+    // Create ctor function to register the module
+    llvm::LLVMContext &C = M.getContext();
+    llvm::Type *Void = llvm::Type::getVoidTy(C);
+    llvm::FunctionType *FTy = llvm::FunctionType::get(Void, false);
+    llvm::Function *FGlobalCtor = llvm::Function::Create(
+        FTy, llvm::Function::InternalLinkage, "soroka_global_ctor", &M);
+    llvm::appendToGlobalCtors(M, FGlobalCtor, 0);
+
+    // Fill the function body
+    llvm::BasicBlock *BB = llvm::BasicBlock::Create(C, "entry", FGlobalCtor);
+    llvm::IRBuilder<> Builder(BB);
+
+    llvm::FunctionCallee RegisterModuleF =
+        M.getFunction("soroka_register_module");
+
+    if (!RegisterModuleF) {
+      llvm::errs()
+          << "Function 'soroka_register_module' not found in module.\n";
+      return llvm::PreservedAnalyses::none();
+    }
+
+    // Create call to register the module
     std::string Data;
     llvm::raw_string_ostream OS(Data);
     llvm::WriteBitcodeToFile(M, OS, /* ShouldPreserveUseListOrder */ true);
     llvm::ArrayRef<uint8_t> ModuleData = llvm::ArrayRef<uint8_t>(
         (const uint8_t *)OS.str().data(), OS.str().size());
-    llvm::Constant *V = llvm::Constant::getIntegerValue(
-        llvm::IntegerType::get(M.getContext(), 32),
-        llvm::APInt(32, ModuleData.size()));
-    llvm::GlobalVariable *GV = M.getGlobalVariable("kek");
-    GV->setInitializer(V);
-    llvm::outs() << "Kek: " << ModuleData.size() << " bytes\n";
-
-    llvm::GlobalVariable *GV2 = M.getGlobalVariable("kek_bytes");
     llvm::Constant *ModuleConstant =
         llvm::ConstantDataArray::get(M.getContext(), ModuleData);
-    GV2->setInitializer(ModuleConstant);
+    llvm::outs() << "ModuleData.size(): " << ModuleData.size() << " bytes\n";
+
+    llvm::Constant *ModuleNameConstant =
+        llvm::ConstantDataArray::getString(C, M.getName().str(), true);
+
+    Builder.CreateCall(RegisterModuleF, {ModuleConstant, ModuleNameConstant});
+    Builder.CreateRetVoid();
+
+    M.dump();
     return llvm::PreservedAnalyses::none();
   }
   static bool isRequired() { return true; }
@@ -93,7 +116,6 @@ public:
     llvm::FunctionType *FTy =
         llvm::FunctionType::get(Void, {VoidPtr, CharPtr}, false);
     llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
-    M.dump();
     return llvm::PreservedAnalyses::none();
   }
 

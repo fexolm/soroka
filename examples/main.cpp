@@ -18,12 +18,4 @@ void printIRFromBitcode(const char *data, size_t size) {
   (*module)->print(llvm::outs(), nullptr);
 }
 
-extern int kek;
-extern const char kek_bytes[];
-
-int main() {
-  std::cout << "PRINT IR FROM BITCODE" << std::endl;
-  std::cout << "Size: " << kek << std::endl;
-  printIRFromBitcode(kek_bytes, kek);
-  std::cout << std::endl;
-}
+int main() { std::cout << "PRINT IR FROM BITCODE" << std::endl; }

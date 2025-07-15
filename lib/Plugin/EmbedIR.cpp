@@ -24,6 +24,7 @@
 #include <llvm-20/llvm/ADT/APInt.h>
 #include <llvm-20/llvm/IR/Constant.h>
 #include <llvm-20/llvm/IR/Constants.h>
+#include <llvm-20/llvm/IR/Function.h>
 #include <llvm-20/llvm/IR/GlobalVariable.h>
 #include <llvm-20/llvm/IR/IRBuilder.h>
 #include <llvm-20/llvm/IR/Instructions.h>
@@ -34,6 +35,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/raw_ostream.h>
@@ -43,6 +45,17 @@
 #include <vector>
 
 namespace soroka {
+
+bool validateModule(llvm::Module &M) {
+  std::string ErrorStr;
+  llvm::raw_string_ostream OS(ErrorStr);
+
+  if (llvm::verifyModule(M, &OS)) {
+    llvm::errs() << "Wrong IR module:\n" << ErrorStr << "\n";
+    return false;
+  }
+  return true;
+}
 
 class EmbedIRPass final : public llvm::AnalysisInfoMixin<EmbedIRPass> {
   friend struct llvm::AnalysisInfoMixin<EmbedIRPass>;
@@ -64,8 +77,7 @@ public:
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(C, "entry", FGlobalCtor);
     llvm::IRBuilder<> Builder(BB);
 
-    llvm::FunctionCallee RegisterModuleF =
-        M.getFunction("soroka_register_module");
+    llvm::Function *RegisterModuleF = M.getFunction("soroka_register_module");
 
     if (!RegisterModuleF) {
       llvm::errs()
@@ -81,13 +93,31 @@ public:
         (const uint8_t *)OS.str().data(), OS.str().size());
     llvm::Constant *ModuleConstant =
         llvm::ConstantDataArray::get(M.getContext(), ModuleData);
-    llvm::outs() << "ModuleData.size(): " << ModuleData.size() << " bytes\n";
+    llvm::GlobalVariable *ModuleGV =
+        new llvm::GlobalVariable(M, ModuleConstant->getType(),
+                                 true, // isConstant
+                                 llvm::GlobalValue::PrivateLinkage,
+                                 ModuleConstant, "soroka.module_data");
 
     llvm::Constant *ModuleNameConstant =
         llvm::ConstantDataArray::getString(C, M.getName().str(), true);
+    llvm::GlobalVariable *ModuleNameGV =
+        new llvm::GlobalVariable(M, ModuleNameConstant->getType(),
+                                 true, // isConstant
+                                 llvm::GlobalValue::PrivateLinkage,
+                                 ModuleNameConstant, "soroka.module_name");
 
-    Builder.CreateCall(RegisterModuleF, {ModuleConstant, ModuleNameConstant});
+    llvm::Constant *ModuleSizeConstant = llvm::ConstantInt::get(
+        llvm::Type::getInt64Ty(M.getContext()), ModuleData.size());
+
+    Builder.CreateCall(RegisterModuleF,
+                       {ModuleNameGV, ModuleGV, ModuleSizeConstant});
     Builder.CreateRetVoid();
+
+    if (!validateModule(M)) {
+      llvm::errs() << "Module verification failed\n";
+      return llvm::PreservedAnalyses::none();
+    }
 
     M.dump();
     return llvm::PreservedAnalyses::none();
@@ -109,12 +139,13 @@ public:
     }
 
     llvm::LLVMContext &C = M.getContext();
-    llvm::Type *Void = llvm::Type::getVoidTy(C);
-    llvm::PointerType *VoidPtr = llvm::PointerType::get(C, 0);
-    llvm::PointerType *CharPtr =
+    llvm::Type *VoidTy = llvm::Type::getVoidTy(C);
+    llvm::PointerType *VoidPtrTy = llvm::PointerType::get(C, 0);
+    llvm::PointerType *CharPtrTy =
         llvm::PointerType::get(llvm::Type::getInt8Ty(C), 0);
+    llvm::IntegerType *IntTy = llvm::IntegerType::getInt64Ty(C);
     llvm::FunctionType *FTy =
-        llvm::FunctionType::get(Void, {VoidPtr, CharPtr}, false);
+        llvm::FunctionType::get(VoidTy, {VoidPtrTy, CharPtrTy, IntTy}, false);
     llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
     return llvm::PreservedAnalyses::none();
   }

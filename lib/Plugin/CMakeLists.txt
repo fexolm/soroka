@@ -1,10 +1,7 @@
-set(WHOLE_ARCHIVE_FLAG "-Wl,--whole-archive")
-set(NO_WHOLE_ARCHIVE_FLAG "-Wl,--no-whole-archive")
-
-add_library(soroka_plugin SHARED EmbedIR.cpp)
+add_library(soroka_plugin SHARED EmbedIR.cpp RuntimeFunctions.cpp Utils.cpp)
 target_include_directories(soroka_plugin PRIVATE ${CLANG_INCLUDE_DIRS})
 target_compile_options(soroka_plugin PRIVATE -Wall -Wpedantic -Werror)
-target_link_libraries(soroka_plugin PRIVATE ${WHOLE_ARCHIVE_FLAG} ${NO_WHOLE_ARCHIVE_FLAG})
+target_include_directories(soroka_plugin PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 add_library(soroka_plugin_flags INTERFACE)
 add_dependencies(soroka_plugin_flags soroka_plugin)

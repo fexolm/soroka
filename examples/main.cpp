@@ -1,6 +1,6 @@
 #include <cstdio>
 
 int main() {
-  printf("Main example: See above, there is the IR module\n");
+  printf("Hello world\n");
   return 0;
 }

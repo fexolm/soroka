@@ -28,6 +28,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
@@ -55,7 +56,16 @@ public:
   Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
     llvm::LLVMContext &C = M.getContext();
 
-    // Create call to register the module
+    // Create ctor function to register the module
+    llvm::Function *FSorokaGlobalCtor = utils::CreateGlobalCtor(C, M);
+
+    // Create the body of the soroka_register_module function
+    llvm::IRBuilder<> Builder(C);
+    llvm::BasicBlock *BB =
+        llvm::BasicBlock::Create(C, "entry", FSorokaGlobalCtor);
+    Builder.SetInsertPoint(BB);
+
+    // Preare the arguments for the soroka_register_module function
     llvm::SmallVector<char, 0> ModuleData = utils::ModuleToObject(M);
     llvm::Constant *ModuleConstant =
         llvm::ConstantDataArray::get(M.getContext(), ModuleData);
@@ -77,7 +87,7 @@ public:
         llvm::Type::getInt64Ty(M.getContext()), ModuleData.size());
 
     runtime_functions::EmitRegisterModuleCall(
-        M, {ModuleNameGV, ModuleGV, ModuleSizeConstant});
+        M, Builder, {ModuleNameGV, ModuleGV, ModuleSizeConstant});
 
     if (llvm::verifyModule(M, &(llvm::errs()))) {
       llvm::errs() << "Module verification failed\n";

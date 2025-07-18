@@ -13,47 +13,88 @@
 //===----------------------------------------------------------------------===//
 
 #include <clang/AST/ASTConsumer.h>
+#include <clang/CodeGen/BackendUtil.h>
+#include <clang/CodeGen/CodeGenAction.h>
+#include <clang/CodeGen/ModuleBuilder.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Frontend/FrontendPluginRegistry.h>
 #include <clang/Sema/Sema.h>
-#include <llvm-20/llvm/ADT/APInt.h>
-#include <llvm-20/llvm/IR/Constant.h>
-#include <llvm-20/llvm/IR/GlobalVariable.h>
-#include <llvm-20/llvm/IR/IRBuilder.h>
-#include <llvm-20/llvm/IR/Instructions.h>
+
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Analysis.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/Support/raw_ostream.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
-using namespace clang;
+#include "soroka/Plugin/RuntimeFunctions.hpp"
+#include "soroka/Plugin/Utils.hpp"
 
 namespace soroka {
 
-class PrintPass final : public llvm::AnalysisInfoMixin<PrintPass> {
-  friend struct llvm::AnalysisInfoMixin<PrintPass>;
+class EmbedIRPass final : public llvm::AnalysisInfoMixin<EmbedIRPass> {
+  friend struct llvm::AnalysisInfoMixin<EmbedIRPass>;
 
 public:
   using Result = llvm::PreservedAnalyses;
 
   Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
-    llvm::IntegerType *T = llvm::IntegerType::get(M.getContext(), 32);
+    llvm::LLVMContext &C = M.getContext();
 
-    llvm::Constant *V =
-        llvm::Constant::getIntegerValue(T, llvm::APInt(32, 100500));
+    // Create ctor function to register the module
+    llvm::Function *FSorokaGlobalCtor = utils::CreateGlobalCtor(C, M);
 
-    llvm::GlobalVariable *GV = M.getGlobalVariable("kek");
-    GV->setInitializer(V);
+    // Create the body of the soroka_register_module function
+    llvm::IRBuilder<> Builder(C);
+    llvm::BasicBlock *BB =
+        llvm::BasicBlock::Create(C, "entry", FSorokaGlobalCtor);
+    Builder.SetInsertPoint(BB);
+
+    // Preare the arguments for the soroka_register_module function
+    llvm::SmallVector<char, 0> ModuleData = utils::ModuleToObject(M);
+    llvm::Constant *ModuleConstant =
+        llvm::ConstantDataArray::get(M.getContext(), ModuleData);
+    llvm::GlobalVariable *ModuleGV =
+        new llvm::GlobalVariable(M, ModuleConstant->getType(),
+                                 true, // isConstant
+                                 llvm::GlobalValue::PrivateLinkage,
+                                 ModuleConstant, "soroka.module_data");
+
+    llvm::Constant *ModuleNameConstant =
+        llvm::ConstantDataArray::getString(C, M.getName().str(), true);
+    llvm::GlobalVariable *ModuleNameGV =
+        new llvm::GlobalVariable(M, ModuleNameConstant->getType(),
+                                 true, // isConstant
+                                 llvm::GlobalValue::PrivateLinkage,
+                                 ModuleNameConstant, "soroka.module_name");
+
+    llvm::Constant *ModuleSizeConstant = llvm::ConstantInt::get(
+        llvm::Type::getInt64Ty(M.getContext()), ModuleData.size());
+
+    runtime_functions::EmitRegisterModuleCall(
+        M, Builder, {ModuleNameGV, ModuleGV, ModuleSizeConstant});
+
+    if (llvm::verifyModule(M, &(llvm::errs()))) {
+      llvm::errs() << "Module verification failed\n";
+      return llvm::PreservedAnalyses::none();
+    }
 
     M.dump();
-
     return llvm::PreservedAnalyses::none();
   }
   static bool isRequired() { return true; }
@@ -62,27 +103,30 @@ public:
 void PrintCallback(llvm::PassBuilder &PB) {
   PB.registerPipelineStartEPCallback(
       [](llvm::ModulePassManager &MPM, llvm::OptimizationLevel) {
-        MPM.addPass(PrintPass());
+        MPM.addPass(EmbedIRPass());
       });
 }
 
-class EmbedIrASTConsumer : public ASTConsumer {
+class EmbedIrASTConsumer : public clang::ASTConsumer {
 public:
-  EmbedIrASTConsumer(CompilerInstance &Instance) : CI(Instance) {
+  EmbedIrASTConsumer(clang::CompilerInstance &Instance) : CI(Instance) {
     CI.getCodeGenOpts().PassBuilderCallbacks.push_back(PrintCallback);
   }
+
+  EmbedIrASTConsumer(const EmbedIrASTConsumer &) = delete;
 
 private:
   clang::CompilerInstance &CI;
 };
 
-class EmbedIrAction : public PluginASTAction {
+class EmbedIrAction : public clang::PluginASTAction {
 protected:
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-                                                 llvm::StringRef) override {
+  std::unique_ptr<clang::ASTConsumer>
+  CreateASTConsumer(clang::CompilerInstance &CI, llvm::StringRef) override {
     return std::make_unique<EmbedIrASTConsumer>(CI);
   }
-  bool ParseArgs(const CompilerInstance &,
+
+  bool ParseArgs(const clang::CompilerInstance &,
                  const std::vector<std::string> &) override {
     return true;
   }
@@ -93,6 +137,6 @@ protected:
 
 } // namespace soroka
 
-static const FrontendPluginRegistry::Add<soroka::EmbedIrAction>
+static const clang::FrontendPluginRegistry::Add<soroka::EmbedIrAction>
     X(/*Name=*/"embed-ir",
       /*Description=*/"Embed jitted functions IR to binary");

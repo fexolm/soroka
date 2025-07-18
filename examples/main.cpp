@@ -1,5 +1,6 @@
-#include <iostream>
+#include <cstdio>
 
-int kek;
-
-int main() { std::cout << kek << std::endl; }
+int main() {
+  printf("Hello world\n");
+  return 0;
+}

@@ -43,8 +43,8 @@ void printIRFromBitcode(const char *ModuleIR, size_t size) {
   (*module)->print(llvm::outs(), nullptr);
 }
 
-extern "C" void soroka_register_module(const char *Name, const char *byteCodeIr,
-                                       size_t size) {
+extern "C" void sorokaRegisterModule(const char *Name, const char *byteCodeIr,
+                                     size_t size) {
   llvm::outs() << "Registering module: " << Name << ", size: " << size
                << " bytes" << "\n";
   printIRFromBitcode(byteCodeIr, size);

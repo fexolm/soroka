@@ -1,6 +1,6 @@
 #pragma once
 
-#include <llvm-20/llvm/ADT/SmallVector.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>

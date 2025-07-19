@@ -42,8 +42,7 @@
 #include <string>
 #include <vector>
 
-#include "soroka/Plugin/RuntimeFunctions.hpp"
-#include "soroka/Plugin/Utils.hpp"
+#include "Utils.hpp"
 
 namespace soroka {
 
@@ -57,23 +56,17 @@ public:
     llvm::LLVMContext &C = M.getContext();
 
     // Create ctor function to register the module
-    llvm::Function *FSorokaGlobalCtor = utils::CreateGlobalCtor(C, M);
+    llvm::Function *SorokaGlobalCtorFunc = utils::CreateGlobalCtor(C, M);
 
-    // Create the body of the soroka_register_module function
+    // Create the body of the sorokaRegisterModule function
     llvm::IRBuilder<> Builder(C);
     llvm::BasicBlock *BB =
-        llvm::BasicBlock::Create(C, "entry", FSorokaGlobalCtor);
+        llvm::BasicBlock::Create(C, "entry", SorokaGlobalCtorFunc);
     Builder.SetInsertPoint(BB);
 
-    // Preare the arguments for the soroka_register_module function
-    llvm::SmallVector<char, 0> ModuleData = utils::ModuleToObject(M);
-    llvm::Constant *ModuleConstant =
-        llvm::ConstantDataArray::get(M.getContext(), ModuleData);
-    llvm::GlobalVariable *ModuleGV =
-        new llvm::GlobalVariable(M, ModuleConstant->getType(),
-                                 true, // isConstant
-                                 llvm::GlobalValue::PrivateLinkage,
-                                 ModuleConstant, "soroka.module_data");
+    // Prepare the arguments for the sorokaRegisterModule function
+    llvm::SmallVector<char, 0> ModuleData = utils::SerializeModule(M);
+    llvm::Constant *ModuleGV = utils::EmbedBinaryData(M, ModuleData);
 
     llvm::Constant *ModuleNameConstant =
         llvm::ConstantDataArray::getString(C, M.getName().str(), true);
@@ -86,15 +79,15 @@ public:
     llvm::Constant *ModuleSizeConstant = llvm::ConstantInt::get(
         llvm::Type::getInt64Ty(M.getContext()), ModuleData.size());
 
-    runtime_functions::EmitRegisterModuleCall(
-        M, Builder, {ModuleNameGV, ModuleGV, ModuleSizeConstant});
+    utils::EmitRegisterModuleCall(M, Builder,
+                                  {ModuleNameGV, ModuleGV, ModuleSizeConstant});
 
     if (llvm::verifyModule(M, &(llvm::errs()))) {
       llvm::errs() << "Module verification failed\n";
       return llvm::PreservedAnalyses::none();
     }
 
-    M.dump();
+    // M.dump(); // For debugging
     return llvm::PreservedAnalyses::none();
   }
   static bool isRequired() { return true; }

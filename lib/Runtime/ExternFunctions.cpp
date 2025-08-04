@@ -9,8 +9,8 @@
 #include <cstddef>
 #include <cstring>
 
-#include "soroka/Runtime/ModuleRegistry.h"
-#include "soroka/Runtime/FunctionRegistry.h"
+#include "soroka/Runtime/FunctionRegistry.hpp"
+#include "soroka/Runtime/ModuleRegistry.hpp"
 
 void printIRFromBitcode(const char *ModuleIR, size_t size) {
   auto buffer =

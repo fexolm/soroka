@@ -1,4 +1,4 @@
-#include "soroka/Runtime/ModuleRegistry.h"
+#include "soroka/Runtime/ModuleRegistry.hpp"
 
 #include <cstddef>
 #include <cstdio>

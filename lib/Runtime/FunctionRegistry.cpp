@@ -1,4 +1,4 @@
-#include "soroka/Runtime/FunctionRegistry.h"
+#include "soroka/Runtime/FunctionRegistry.hpp"
 #include <cstdio>
 
 namespace soroka {

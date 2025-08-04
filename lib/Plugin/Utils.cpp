@@ -58,7 +58,6 @@ void EmitRegisterModuleCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
         llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
   }
 
-  // Fill the function body
   Builder.CreateCall(RegisterModuleFunc, Args);
 }
 
@@ -79,7 +78,6 @@ void EmitRegisterFunctionCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
         llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
   }
 
-  // Fill the function body
   Builder.CreateCall(RegisterFunctionFunc, Args);
 }
 

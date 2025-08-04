@@ -40,7 +40,8 @@ extern "C" void sorokaRegisterModule(const char *Name, const char *byteCodeIr,
 
   // // Optionally, print all registered modules
   // llvm::outs() << "Registered modules:\n";
-  // for (const auto &[module_name, module_entry] : ModuleRegistry) {
+  // for (const auto &[module_name, module_entry] :
+  //      soroka::ModuleRegistry::get()) {
   //   llvm::outs() << "Module Name: " << module_name << "\n";
   //   printIRFromBitcode(module_entry.serializedData, module_entry.size);
   //   llvm::outs() << "--------------------------\n";
@@ -55,10 +56,10 @@ extern "C" void sorokaRegisterFunction(const char *FunctionId, const char *Modul
   FunctionRegistry.registerFunction(FunctionId, ModuleId);
 
   // Optionally, print module name for the function
-  const char *ModuleName = FunctionRegistry.getModule(FunctionId);
-  if (ModuleName) {
-    llvm::outs() << "Function " << FunctionId << " is registered in module: "
-                 << ModuleName << "\n";
+  const std::string ModuleName = FunctionRegistry.getModuleName(FunctionId);
+  if (!ModuleName.empty()) {
+    llvm::outs() << "Function " << FunctionId
+                 << " is registered in module: " << ModuleName << "\n";
   } else {
     llvm::outs() << "Function " << FunctionId << " is not registered in any module.\n";
   }

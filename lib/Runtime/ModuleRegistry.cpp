@@ -14,14 +14,14 @@ ModuleRegistry &ModuleRegistry::get() {
 }
 
 std::pair<std::string, ModuleEntry>
-ModuleRegistry::getSerializedModule(const char *ModuleName) {
+ModuleRegistry::getSerializedModule(const std::string &ModuleName) {
   auto it = SerializedModuleByName.find(ModuleName);
   return it != SerializedModuleByName.end()
              ? std::make_pair(it->first, it->second)
              : std::make_pair(std::string(), ModuleEntry{nullptr, 0});
 }
 
-void ModuleRegistry::registerModule(const char *ModuleName,
+void ModuleRegistry::registerModule(const std::string &ModuleName,
                                     const char *SerializedModule, size_t size) {
   SerializedModuleByName[ModuleName] = ModuleEntry{SerializedModule, size};
 }

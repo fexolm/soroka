@@ -24,10 +24,10 @@ public:
   static ModuleRegistry &get();
 
   std::pair<std::string, ModuleEntry>
-  getSerializedModule(const char *ModuleName);
+  getSerializedModule(const std::string &ModuleName);
 
-  void registerModule(const char *ModuleName, const char *SerializedModule,
-                      size_t size);
+  void registerModule(const std::string &ModuleName,
+                      const char *SerializedModule, size_t size);
 
 private:
   ModuleRegistry();

@@ -1,5 +1,7 @@
 #include "soroka/Runtime/FunctionRegistry.hpp"
+
 #include <cstdio>
+#include <string>
 
 namespace soroka {
 FunctionRegistry::FunctionRegistry() {}
@@ -9,12 +11,14 @@ FunctionRegistry &FunctionRegistry::get() {
   return FR;
 }
 
-const char *FunctionRegistry::getModule(const char *FunctionId) {
+const std::string
+FunctionRegistry::getModuleName(const std::string &FunctionId) {
   auto it = ModuleByFuncId.find(FunctionId);
-  return it != ModuleByFuncId.end() ? it->second : nullptr;
+  return it != ModuleByFuncId.end() ? it->second : std::string();
 }
 
-void FunctionRegistry::registerFunction(const char *FunctionId, const char *ModuleId) {
+void FunctionRegistry::registerFunction(const std::string &FunctionId,
+                                        const std::string &ModuleId) {
   ModuleByFuncId[FunctionId] = ModuleId;
 }
 

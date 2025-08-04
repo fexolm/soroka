@@ -82,12 +82,30 @@ public:
     utils::EmitRegisterModuleCall(M, Builder,
                                   {ModuleNameGV, ModuleGV, ModuleSizeConstant});
 
+    for (llvm::Function &F : M.functions()) {
+      if (F.getSection() == "soroka") {
+        llvm::Constant *FunctionNameConstant =
+            llvm::ConstantDataArray::getString(C, F.getName().str(), true);
+
+        llvm::GlobalVariable *FunctionNameGV = new llvm::GlobalVariable(
+            M, FunctionNameConstant->getType(),
+            true, // isConstant
+            llvm::GlobalValue::PrivateLinkage, FunctionNameConstant,
+            "soroka.function_name_" + F.getName().str());
+
+        utils::EmitRegisterFunctionCall(M, Builder,
+                                        {FunctionNameGV, ModuleNameGV});
+      }
+    }
+
+    // M.dump(); // For debugging
+
+    // Create a return instruction to end the function
+    Builder.CreateRetVoid();
     if (llvm::verifyModule(M, &(llvm::errs()))) {
       llvm::errs() << "Module verification failed\n";
       return llvm::PreservedAnalyses::none();
     }
-
-    // M.dump(); // For debugging
     return llvm::PreservedAnalyses::none();
   }
   static bool isRequired() { return true; }

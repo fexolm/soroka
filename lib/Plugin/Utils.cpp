@@ -49,19 +49,38 @@ void EmitRegisterModuleCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
   if (RegisterModuleFunc == nullptr) {
     llvm::LLVMContext &C = M.getContext();
     llvm::Type *VoidTy = llvm::Type::getVoidTy(C);
-    llvm::PointerType *VoidPtrTy = llvm::PointerType::getUnqual(C);
     llvm::PointerType *CharPtrTy =
         llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(C));
     llvm::IntegerType *IntTy = llvm::IntegerType::getInt64Ty(C);
     llvm::FunctionType *FTy =
-        llvm::FunctionType::get(VoidTy, {VoidPtrTy, CharPtrTy, IntTy}, false);
+        llvm::FunctionType::get(VoidTy, {CharPtrTy, CharPtrTy, IntTy}, false);
     RegisterModuleFunc =
         llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
   }
 
   // Fill the function body
   Builder.CreateCall(RegisterModuleFunc, Args);
-  Builder.CreateRetVoid();
+}
+
+void EmitRegisterFunctionCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
+                              llvm::ArrayRef<llvm::Value *> Args) {
+  llvm::StringRef Name = "sorokaRegisterFunction";
+  llvm::Function *RegisterFunctionFunc = M.getFunction(Name);
+
+  // If the function does not exist, create it
+  if (RegisterFunctionFunc == nullptr) {
+    llvm::LLVMContext &C = M.getContext();
+    llvm::Type *VoidTy = llvm::Type::getVoidTy(C);
+    llvm::PointerType *CharPtrTy =
+        llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(C));
+    llvm::FunctionType *FTy =
+        llvm::FunctionType::get(VoidTy, {CharPtrTy, CharPtrTy}, false);
+    RegisterFunctionFunc =
+        llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
+  }
+
+  // Fill the function body
+  Builder.CreateCall(RegisterFunctionFunc, Args);
 }
 
 } // namespace utils

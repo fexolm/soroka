@@ -14,5 +14,7 @@ llvm::Constant *EmbedBinaryData(llvm::Module &M,
                                 llvm::SmallVector<char, 0> &Data);
 void EmitRegisterModuleCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
                             llvm::ArrayRef<llvm::Value *> Args);
+void EmitRegisterFunctionCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
+                              llvm::ArrayRef<llvm::Value *> Args);
 } // namespace utils
 } // namespace soroka

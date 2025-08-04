@@ -65,7 +65,7 @@ extern "C" void sorokaRegisterFunction(const char *FunctionId, const char *Modul
 
   // Optionally, check if the module is registered
   auto moduleEntry = soroka::ModuleRegistry::get().getSerializedModule(ModuleId);
-  if (moduleEntry.first) {
+  if (!moduleEntry.first.empty()) {
     llvm::outs() << "Module " << moduleEntry.first
                  << " is registered with size: " << moduleEntry.second.size
                  << " bytes.\n";

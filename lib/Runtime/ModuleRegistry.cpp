@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <string>
 #include <utility>
 
 namespace soroka {
@@ -12,12 +13,12 @@ ModuleRegistry &ModuleRegistry::get() {
   return MR;
 }
 
-std::pair<const char *, ModuleEntry>
+std::pair<std::string, ModuleEntry>
 ModuleRegistry::getSerializedModule(const char *ModuleName) {
   auto it = SerializedModuleByName.find(ModuleName);
   return it != SerializedModuleByName.end()
              ? std::make_pair(it->first, it->second)
-             : std::make_pair(nullptr, ModuleEntry{nullptr, 0});
+             : std::make_pair(std::string(), ModuleEntry{nullptr, 0});
 }
 
 void ModuleRegistry::registerModule(const char *ModuleName,

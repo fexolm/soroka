@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <unordered_map>
 
 namespace soroka {
@@ -13,6 +14,6 @@ public:
 private:
   FunctionRegistry();
 
-  std::unordered_map<const char *, const char *> ModuleByFuncId;
+  std::unordered_map<std::string, const char *> ModuleByFuncId;
 };
 } // namespace soroka

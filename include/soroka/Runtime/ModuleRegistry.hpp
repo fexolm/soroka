@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <unordered_map>
 #include <utility>
 
@@ -11,7 +12,7 @@ struct ModuleEntry {
 
 class ModuleRegistry {
 public:
-  using container = std::unordered_map<const char *, ModuleEntry>;
+  using container = std::unordered_map<std::string, ModuleEntry>;
   using iterator = typename container::iterator;
   using const_iterator = typename container::const_iterator;
 
@@ -22,7 +23,7 @@ public:
 
   static ModuleRegistry &get();
 
-  std::pair<const char *, ModuleEntry>
+  std::pair<std::string, ModuleEntry>
   getSerializedModule(const char *ModuleName);
 
   void registerModule(const char *ModuleName, const char *SerializedModule,
@@ -31,6 +32,6 @@ public:
 private:
   ModuleRegistry();
 
-  std::unordered_map<const char *, ModuleEntry> SerializedModuleByName;
+  container SerializedModuleByName;
 };
 } // namespace soroka

@@ -70,10 +70,11 @@ void EmitRegisterFunctionCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
   if (RegisterFunctionFunc == nullptr) {
     llvm::LLVMContext &C = M.getContext();
     llvm::Type *VoidTy = llvm::Type::getVoidTy(C);
+    llvm::PointerType *VoidPtrTy = llvm::PointerType::getUnqual(VoidTy);
     llvm::PointerType *CharPtrTy =
         llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(C));
-    llvm::FunctionType *FTy =
-        llvm::FunctionType::get(VoidTy, {CharPtrTy, CharPtrTy}, false);
+    llvm::FunctionType *FTy = llvm::FunctionType::get(
+        VoidTy, {VoidPtrTy, CharPtrTy, CharPtrTy}, false);
     RegisterFunctionFunc =
         llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
   }

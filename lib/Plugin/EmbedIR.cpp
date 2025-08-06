@@ -21,6 +21,7 @@
 #include <clang/Frontend/FrontendPluginRegistry.h>
 #include <clang/Sema/Sema.h>
 
+#include <cstdlib>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Analysis.h>
 #include <llvm/IR/Constants.h>
@@ -33,11 +34,14 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Value.h>
+#include <llvm/IR/ValueSymbolTable.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <cstdlib> // for std::abort
 #include <memory>
 #include <string>
 #include <vector>
@@ -82,6 +86,8 @@ public:
     utils::EmitRegisterModuleCall(M, Builder,
                                   {ModuleNameGV, ModuleGV, ModuleSizeConstant});
 
+    llvm::ValueSymbolTable &VST = M.getValueSymbolTable();
+
     for (llvm::Function &F : M.functions()) {
       if (F.getSection() == "soroka") {
         llvm::Constant *FunctionNameConstant =
@@ -93,14 +99,21 @@ public:
             llvm::GlobalValue::PrivateLinkage, FunctionNameConstant,
             "soroka.function_name_" + F.getName().str());
 
-        utils::EmitRegisterFunctionCall(M, Builder,
-                                        {FunctionNameGV, ModuleNameGV});
+        llvm::Value *FunctionPtrGV = VST.lookup(F.getName());
+        if (!FunctionPtrGV) {
+          llvm::errs() << "Function " << F.getName()
+                       << " not found in ValueSymbolTable\n";
+          // What to do?
+          std::abort();
+        }
+
+        utils::EmitRegisterFunctionCall(
+            M, Builder, {FunctionPtrGV, FunctionNameGV, ModuleNameGV});
       }
     }
 
     // M.dump(); // For debugging
 
-    // Create a return instruction to end the function
     Builder.CreateRetVoid();
     if (llvm::verifyModule(M, &(llvm::errs()))) {
       llvm::errs() << "Module verification failed\n";

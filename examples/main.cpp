@@ -1,5 +1,7 @@
 #include <cstdio>
 
+#include "soroka/Runtime/FunctionRegistry.hpp"
+
 #define SOROKA_JIT __attribute__((section("soroka")))
 
 SOROKA_JIT void sorokaFunction() {
@@ -19,5 +21,17 @@ int main() {
   sorokaFunction();
   sorokaFunction1();
   sorokaFunction2();
+  soroka::FunctionRegistry &FunctionRegistry = soroka::FunctionRegistry::get();
+  void *FuncPtr = FunctionRegistry.getFunctionPtr("_Z15sorokaFunction2v");
+  if (FuncPtr) {
+    printf("Function pointer for _Z15sorokaFunction2v: %p\n", FuncPtr);
+  } else {
+    printf(
+        "Function pointer for _Z15sorokaFunction2v not found in registry.\n");
+  }
+  printf("Calling _Z15sorokaFunction2v by ptr\n");
+  using FuncPtrType = void (*)();
+  FuncPtrType func = (FuncPtrType)FuncPtr;
+  func();
   return 0;
 }

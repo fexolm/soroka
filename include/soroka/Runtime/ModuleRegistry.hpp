@@ -5,26 +5,23 @@
 
 namespace soroka {
 
-struct ModuleEntry {
-  const char *serializedData = nullptr;
-  size_t size = 0;
-};
-
 class ModuleRegistry {
 public:
-  using container = std::unordered_map<std::string, ModuleEntry>;
-  using iterator = typename container::iterator;
-  using const_iterator = typename container::const_iterator;
 
-  iterator begin() { return SerializedModuleByName.begin(); }
-  iterator end() { return SerializedModuleByName.end(); }
-  const_iterator begin() const { return SerializedModuleByName.begin(); }
-  const_iterator end() const { return SerializedModuleByName.end(); }
+#ifdef DEBUG
+  using Container = std::unordered_map<std::string, std::string>;
+  using Iterator = typename Container::iterator;
+  using ConstIterator = typename Container::const_iterator;
+
+  Iterator begin() { return DeserializedModuleByName.begin(); }
+  Iterator end() { return DeserializedModuleByName.end(); }
+  ConstIterator begin() const { return DeserializedModuleByName.begin(); }
+  ConstIterator end() const { return DeserializedModuleByName.end(); }
+#endif
 
   static ModuleRegistry &get();
 
-  std::pair<std::string, ModuleEntry>
-  getSerializedModule(const std::string &ModuleName);
+  const std::string &getDeserializedModule(const std::string &ModuleName);
 
   void registerModule(const std::string &ModuleName,
                       const char *SerializedModule, size_t size);
@@ -32,6 +29,8 @@ public:
 private:
   ModuleRegistry();
 
-  container SerializedModuleByName;
+  std::string deserializeIRFromBitcode(const char *ModuleIR, size_t size);
+
+  std::unordered_map<std::string, std::string> DeserializedModuleByName;
 };
 } // namespace soroka

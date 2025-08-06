@@ -21,7 +21,6 @@
 #include <clang/Frontend/FrontendPluginRegistry.h>
 #include <clang/Sema/Sema.h>
 
-#include <cstdlib>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Analysis.h>
 #include <llvm/IR/Constants.h>
@@ -41,7 +40,6 @@
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include <cstdlib> // for std::abort
 #include <memory>
 #include <string>
 #include <vector>
@@ -103,8 +101,7 @@ public:
         if (!FunctionPtrGV) {
           llvm::errs() << "Function " << F.getName()
                        << " not found in ValueSymbolTable\n";
-          // What to do?
-          std::abort();
+          continue; // What to do if the function is not found?
         }
 
         utils::EmitRegisterFunctionCall(

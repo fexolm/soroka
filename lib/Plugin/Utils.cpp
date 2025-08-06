@@ -49,11 +49,10 @@ void EmitRegisterModuleCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
   if (RegisterModuleFunc == nullptr) {
     llvm::LLVMContext &C = M.getContext();
     llvm::Type *VoidTy = llvm::Type::getVoidTy(C);
-    llvm::PointerType *CharPtrTy =
-        llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(C));
+    llvm::PointerType *PtrTy = llvm::PointerType::getUnqual(C);
     llvm::IntegerType *IntTy = llvm::IntegerType::getInt64Ty(C);
     llvm::FunctionType *FTy =
-        llvm::FunctionType::get(VoidTy, {CharPtrTy, CharPtrTy, IntTy}, false);
+        llvm::FunctionType::get(VoidTy, {PtrTy, PtrTy, IntTy}, false);
     RegisterModuleFunc =
         llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
   }
@@ -70,11 +69,9 @@ void EmitRegisterFunctionCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
   if (RegisterFunctionFunc == nullptr) {
     llvm::LLVMContext &C = M.getContext();
     llvm::Type *VoidTy = llvm::Type::getVoidTy(C);
-    llvm::PointerType *VoidPtrTy = llvm::PointerType::getUnqual(VoidTy);
-    llvm::PointerType *CharPtrTy =
-        llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(C));
-    llvm::FunctionType *FTy = llvm::FunctionType::get(
-        VoidTy, {VoidPtrTy, CharPtrTy, CharPtrTy}, false);
+    llvm::PointerType *PtrTy = llvm::PointerType::getUnqual(C);
+    llvm::FunctionType *FTy =
+        llvm::FunctionType::get(VoidTy, {PtrTy, PtrTy, PtrTy}, false);
     RegisterFunctionFunc =
         llvm::Function::Create(FTy, llvm::Function::ExternalLinkage, Name, &M);
   }

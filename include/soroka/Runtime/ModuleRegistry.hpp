@@ -1,16 +1,21 @@
 #pragma once
+
+#include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 
 #include <memory>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 
 namespace soroka {
 
+using ModuleContextPair = std::pair<std::unique_ptr<llvm::Module>,
+                                    std::unique_ptr<llvm::LLVMContext>>;
+
 class ModuleRegistry {
 public:
-  using Container =
-      std::unordered_map<std::string, std::unique_ptr<llvm::Module>>;
+  using Container = std::unordered_map<std::string, ModuleContextPair>;
   using Iterator = typename Container::iterator;
   using ConstIterator = typename Container::const_iterator;
 
@@ -29,10 +34,10 @@ public:
 private:
   ModuleRegistry();
 
-  std::unique_ptr<llvm::Module> deserializeIRFromBitcode(const char *ModuleIR,
-                                                         size_t size);
+  std::unique_ptr<llvm::Module>
+  deserializeIRFromBitcode(const char *ModuleIR, size_t size,
+                           llvm::LLVMContext &context);
 
-  std::unordered_map<std::string, std::unique_ptr<llvm::Module>>
-      DeserializedModuleByName;
+  std::unordered_map<std::string, ModuleContextPair> DeserializedModuleByName;
 };
 } // namespace soroka

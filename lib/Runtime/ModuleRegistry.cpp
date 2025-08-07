@@ -4,6 +4,7 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include <llvm-20/llvm/IR/LLVMContext.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/Support/Error.h>
@@ -31,18 +32,21 @@ ModuleRegistry::getDeserializedModule(std::string_view ModuleName) {
     throw std::runtime_error("Module not found: " + std::string(ModuleName) +
                              "\n");
   }
-  return it->second.get();
+  return it->second.first.get();
 }
 
 void ModuleRegistry::registerModule(const char *ModuleName,
                                     const char *SerializedModule, size_t size) {
+  std::unique_ptr<llvm::LLVMContext> contex(new llvm::LLVMContext());
   std::unique_ptr<llvm::Module> module =
-      deserializeIRFromBitcode(SerializedModule, size);
-  DeserializedModuleByName[ModuleName] = std::move(module);
+      deserializeIRFromBitcode(SerializedModule, size, *contex);
+  DeserializedModuleByName[ModuleName] =
+      ModuleContextPair(std::move(module), std::move(contex));
 }
 
 std::unique_ptr<llvm::Module>
-ModuleRegistry::deserializeIRFromBitcode(const char *ModuleIR, size_t size) {
+ModuleRegistry::deserializeIRFromBitcode(const char *ModuleIR, size_t size,
+                                         llvm::LLVMContext &context) {
   static const std::string empty_string;
   std::unique_ptr<llvm::MemoryBuffer> buffer =
       llvm::MemoryBuffer::getMemBufferCopy(llvm::StringRef(ModuleIR, size));
@@ -51,7 +55,6 @@ ModuleRegistry::deserializeIRFromBitcode(const char *ModuleIR, size_t size) {
     throw std::runtime_error("Failed to create memory buffer\n");
   }
 
-  llvm::LLVMContext context;
   llvm::Expected<std::unique_ptr<llvm::Module>> module =
       llvm::parseBitcodeFile(buffer->getMemBufferRef(), context);
   if (llvm::Error err = module.takeError()) {

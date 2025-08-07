@@ -1,6 +1,7 @@
 #include <cstdio>
 
 #include "soroka/Runtime/FunctionRegistry.hpp"
+#include "soroka/Runtime/ModuleRegistry.hpp"
 
 #define SOROKA_JIT __attribute__((section("soroka")))
 
@@ -21,6 +22,15 @@ int main() {
   sorokaFunction();
   sorokaFunction1();
   sorokaFunction2();
+  soroka::ModuleRegistry &ModuleRegistry = soroka::ModuleRegistry::get();
+  llvm::Module *moduleIR =
+      ModuleRegistry.getDeserializedModule("examples/main.cpp");
+  if (moduleIR) {
+    printf("Module examples/main.cpp is registered\n");
+  } else {
+    printf("Module examples/main.cpp is not registered.\n");
+  }
+
   soroka::FunctionRegistry &FunctionRegistry = soroka::FunctionRegistry::get();
   void *FuncPtr = FunctionRegistry.getFunctionPtr("_Z15sorokaFunction2v");
   if (FuncPtr) {

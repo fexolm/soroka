@@ -1,7 +1,9 @@
 #include "soroka/Runtime/FunctionRegistry.hpp"
 
 #include <cstdio>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace soroka {
 FunctionRegistry::FunctionRegistry() {}
@@ -11,14 +13,16 @@ FunctionRegistry &FunctionRegistry::get() {
   return FR;
 }
 
-const std::string &
-FunctionRegistry::getModuleName(const std::string &FunctionId) {
-  auto it = ModuleByFuncId.find(FunctionId);
-  static const std::string empty_string;
-  return it != ModuleByFuncId.end() ? it->second : empty_string;
+std::string FunctionRegistry::getModuleName(std::string_view FunctionId) {
+  auto it = ModuleByFuncId.find(FunctionId.data());
+  if (it == ModuleByFuncId.end()) {
+    throw std::runtime_error("Function not found: " + std::string(FunctionId) +
+                             "\n");
+  }
+  return it->second;
 }
 
-void *FunctionRegistry::getFunctionPtr(const std::string &FunctionId) {
+void *FunctionRegistry::getFunctionPtr(std::string_view FunctionId) {
   for (const auto &pair : FuncIdByFuncPtr) {
     if (pair.second == FunctionId) {
       return pair.first;
@@ -28,8 +32,8 @@ void *FunctionRegistry::getFunctionPtr(const std::string &FunctionId) {
 }
 
 void FunctionRegistry::registerFunction(void *FunctionPtr,
-                                        const std::string &FunctionId,
-                                        const std::string &ModuleId) {
+                                        const char *FunctionId,
+                                        const char *ModuleId) {
   ModuleByFuncId[FunctionId] = ModuleId;
   FuncIdByFuncPtr[FunctionPtr] = FunctionId;
 }

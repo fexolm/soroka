@@ -10,7 +10,11 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <memory>
+#include <stdexcept>
 #include <string>
+#include <string_view>
+#include <utility>
 
 namespace soroka {
 ModuleRegistry::ModuleRegistry() {}
@@ -20,43 +24,42 @@ ModuleRegistry &ModuleRegistry::get() {
   return MR;
 }
 
-const std::string &
-ModuleRegistry::getDeserializedModule(const std::string &ModuleName) {
-  auto it = DeserializedModuleByName.find(ModuleName);
-  static const std::string empty_string;
-  return it != DeserializedModuleByName.end() ? it->second : empty_string;
+llvm::Module *
+ModuleRegistry::getDeserializedModule(std::string_view ModuleName) {
+  auto it = DeserializedModuleByName.find(ModuleName.data());
+  if (it == DeserializedModuleByName.end()) {
+    throw std::runtime_error("Module not found: " + std::string(ModuleName) +
+                             "\n");
+  }
+  return it->second.get();
 }
 
-void ModuleRegistry::registerModule(const std::string &ModuleName,
+void ModuleRegistry::registerModule(const char *ModuleName,
                                     const char *SerializedModule, size_t size) {
-  DeserializedModuleByName[ModuleName] =
+  std::unique_ptr<llvm::Module> module =
       deserializeIRFromBitcode(SerializedModule, size);
+  DeserializedModuleByName[ModuleName] = std::move(module);
 }
 
-std::string ModuleRegistry::deserializeIRFromBitcode(const char *ModuleIR,
-                                                     size_t size) {
+std::unique_ptr<llvm::Module>
+ModuleRegistry::deserializeIRFromBitcode(const char *ModuleIR, size_t size) {
   static const std::string empty_string;
-  auto buffer =
+  std::unique_ptr<llvm::MemoryBuffer> buffer =
       llvm::MemoryBuffer::getMemBufferCopy(llvm::StringRef(ModuleIR, size));
 
   if (!buffer) {
-    llvm::errs() << "Failed to create memory buffer: \n";
-    return std::string();
+    throw std::runtime_error("Failed to create memory buffer\n");
   }
 
   llvm::LLVMContext context;
-  auto module = llvm::parseBitcodeFile(buffer->getMemBufferRef(), context);
-  if (!module) {
-    llvm::errs() << "Failed to parse bitcode: "
-                 << llvm::toString(module.takeError()) << "\n";
-    return std::string();
+  llvm::Expected<std::unique_ptr<llvm::Module>> module =
+      llvm::parseBitcodeFile(buffer->getMemBufferRef(), context);
+  if (llvm::Error err = module.takeError()) {
+    throw std::runtime_error(
+        "Failed to parse bitcode: " + llvm::toString(std::move(err)) + "\n");
   }
 
-  std::string ir;
-  llvm::raw_string_ostream os(ir);
-  module.get()->print(os, nullptr);
-  os.flush();
-  return ir;
+  return std::move(module.get());
 }
 
 } // namespace soroka

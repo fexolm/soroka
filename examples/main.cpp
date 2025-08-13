@@ -23,9 +23,9 @@ int main() {
   sorokaFunction1();
   sorokaFunction2();
   soroka::ModuleRegistry &ModuleRegistry = soroka::ModuleRegistry::get();
-  llvm::Module *moduleIR =
+  soroka::ModuleContextPair entry =
       ModuleRegistry.getDeserializedModule("examples/main.cpp");
-  if (moduleIR) {
+  if (entry.module) {
     printf("Module examples/main.cpp is registered\n");
   } else {
     printf("Module examples/main.cpp is not registered.\n");

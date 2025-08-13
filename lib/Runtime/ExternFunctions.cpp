@@ -1,4 +1,3 @@
-#include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <cstddef>
@@ -43,9 +42,9 @@ extern "C" void sorokaRegisterFunction(void *FunctionPtr,
                  << " is not registered in any module.\n";
   }
 
-  llvm::Module *moduleIR =
+  soroka::ModuleContextPair entry =
       soroka::ModuleRegistry::get().getDeserializedModule(ModuleId);
-  if (moduleIR) {
+  if (entry.module) {
     llvm::outs() << "Module " << ModuleId << " is registered\n";
   } else {
     llvm::outs() << "Module " << ModuleId << " is not registered.\n";

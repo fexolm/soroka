@@ -25,23 +25,27 @@ ModuleRegistry &ModuleRegistry::get() {
   return MR;
 }
 
-llvm::Module *
+ModuleContextPair
 ModuleRegistry::getDeserializedModule(std::string_view ModuleName) {
   auto it = DeserializedModuleByName.find(ModuleName.data());
   if (it == DeserializedModuleByName.end()) {
     throw std::runtime_error("Module not found: " + std::string(ModuleName) +
                              "\n");
   }
-  return it->second.first.get();
+
+  const ModuleEntry &entry = it->second;
+  std::unique_ptr<llvm::LLVMContext> context(new llvm::LLVMContext());
+  std::unique_ptr<llvm::Module> module =
+      deserializeIRFromBitcode(entry.serializedData, entry.size, *context);
+  return ModuleContextPair{
+      std::move(module),
+      std::move(context),
+  };
 }
 
 void ModuleRegistry::registerModule(const char *ModuleName,
                                     const char *SerializedModule, size_t size) {
-  std::unique_ptr<llvm::LLVMContext> contex(new llvm::LLVMContext());
-  std::unique_ptr<llvm::Module> module =
-      deserializeIRFromBitcode(SerializedModule, size, *contex);
-  DeserializedModuleByName[ModuleName] =
-      ModuleContextPair(std::move(module), std::move(contex));
+  DeserializedModuleByName[ModuleName] = ModuleEntry{SerializedModule, size};
 }
 
 std::unique_ptr<llvm::Module>

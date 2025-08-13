@@ -10,12 +10,24 @@
 
 namespace soroka {
 
-using ModuleContextPair = std::pair<std::unique_ptr<llvm::Module>,
-                                    std::unique_ptr<llvm::LLVMContext>>;
+struct ModuleContextPair {
+  std::unique_ptr<llvm::Module> module;
+  std::unique_ptr<llvm::LLVMContext> context;
+
+  ~ModuleContextPair() {
+    module.reset();
+    context.reset();
+  }
+};
+
+struct ModuleEntry {
+  const char *serializedData = nullptr;
+  size_t size = 0;
+};
 
 class ModuleRegistry {
 public:
-  using Container = std::unordered_map<std::string, ModuleContextPair>;
+  using Container = std::unordered_map<std::string, ModuleEntry>;
   using Iterator = typename Container::iterator;
   using ConstIterator = typename Container::const_iterator;
 
@@ -26,7 +38,7 @@ public:
 
   static ModuleRegistry &get();
 
-  llvm::Module *getDeserializedModule(std::string_view ModuleName);
+  ModuleContextPair getDeserializedModule(std::string_view ModuleName);
 
   void registerModule(const char *ModuleName, const char *SerializedModule,
                       size_t size);
@@ -38,6 +50,6 @@ private:
   deserializeIRFromBitcode(const char *ModuleIR, size_t size,
                            llvm::LLVMContext &context);
 
-  std::unordered_map<std::string, ModuleContextPair> DeserializedModuleByName;
+  std::unordered_map<std::string, ModuleEntry> DeserializedModuleByName;
 };
 } // namespace soroka

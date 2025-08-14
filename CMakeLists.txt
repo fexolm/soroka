@@ -7,6 +7,8 @@ project(soroka)
 find_package(Clang 20.1 REQUIRED)
 find_package(LLVM 20.1 REQUIRED)
 
+# add_definitions(-DDEBUG) # Uncomment to enable debug mode
+
 add_subdirectory(lib)
 add_subdirectory(tests)
 # add_subdirectory(examples)

@@ -33,6 +33,8 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Value.h>
+#include <llvm/IR/ValueSymbolTable.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
@@ -82,12 +84,38 @@ public:
     utils::EmitRegisterModuleCall(M, Builder,
                                   {ModuleNameGV, ModuleGV, ModuleSizeConstant});
 
+    llvm::ValueSymbolTable &VST = M.getValueSymbolTable();
+
+    for (llvm::Function &F : M.functions()) {
+      if (F.getSection() == "soroka") {
+        llvm::Constant *FunctionNameConstant =
+            llvm::ConstantDataArray::getString(C, F.getName().str(), true);
+
+        llvm::GlobalVariable *FunctionNameGV = new llvm::GlobalVariable(
+            M, FunctionNameConstant->getType(),
+            true, // isConstant
+            llvm::GlobalValue::PrivateLinkage, FunctionNameConstant,
+            "soroka.function_name_" + F.getName().str());
+
+        llvm::Value *FunctionPtrGV = VST.lookup(F.getName());
+        if (!FunctionPtrGV) {
+          llvm::errs() << "Function " << F.getName()
+                       << " not found in ValueSymbolTable\n";
+          continue; // What to do if the function is not found?
+        }
+
+        utils::EmitRegisterFunctionCall(
+            M, Builder, {FunctionPtrGV, FunctionNameGV, ModuleNameGV});
+      }
+    }
+
+    // M.dump(); // For debugging
+
+    Builder.CreateRetVoid();
     if (llvm::verifyModule(M, &(llvm::errs()))) {
       llvm::errs() << "Module verification failed\n";
       return llvm::PreservedAnalyses::none();
     }
-
-    // M.dump(); // For debugging
     return llvm::PreservedAnalyses::none();
   }
   static bool isRequired() { return true; }

@@ -4,7 +4,7 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include <llvm-20/llvm/IR/LLVMContext.h>
+#include <llvm/IR/LLVMContext.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/Support/Error.h>

@@ -51,7 +51,6 @@ void ModuleRegistry::registerModule(const char *ModuleName,
 std::unique_ptr<llvm::Module>
 ModuleRegistry::deserializeIRFromBitcode(const char *ModuleIR, size_t size,
                                          llvm::LLVMContext &context) {
-  static const std::string empty_string;
   std::unique_ptr<llvm::MemoryBuffer> buffer =
       llvm::MemoryBuffer::getMemBufferCopy(llvm::StringRef(ModuleIR, size));
 

@@ -36,12 +36,8 @@ FunctionEntry FunctionRegistry::getFunctionModuleAndIdName(void *FunctionPtr) {
   if (it == FuncIdByFuncPtr.end()) {
     throw std::runtime_error("Function pointer not found\n");
   }
-  try {
-    std::string moduleName = getModuleName(it->second);
-    return {moduleName, it->second};
-  } catch (const std::runtime_error &e) {
-    throw e;
-  }
+  std::string moduleName = getModuleName(it->second);
+  return {moduleName, it->second};
 }
 
 void FunctionRegistry::registerFunction(void *FunctionPtr,

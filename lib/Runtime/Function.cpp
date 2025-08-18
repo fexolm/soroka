@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 #include "soroka/Runtime/FunctionRegistry.hpp"
@@ -38,10 +39,15 @@ std::unique_ptr<Function> Function::Compile(FunctionPtr Address) {
                << "` by address: " << Address << "\n";
 
   auto [M, Ctx] = moduleRegistry.getDeserializedModule(funcEntry.moduleName);
-  if (llvm::verifyModule(*M, &llvm::errs())) {
-    llvm::errs() << "Module isn't correct\n";
-    throw std::runtime_error("Failed to create LLJIT");
+
+  std::string verifyErrs;
+  llvm::raw_string_ostream verifyStream(verifyErrs);
+  if (llvm::verifyModule(*M, &verifyStream)) {
+    verifyStream.flush();
+    llvm::errs() << "Module verification failed:\n" << verifyErrs << "\n";
+    throw std::runtime_error("Failed to create LLJIT: " + verifyErrs);
   }
+
   for (auto &F : *M) {
     for (auto &BB : F) {
       if (!BB.getTerminator()) {
@@ -50,11 +56,12 @@ std::unique_ptr<Function> Function::Compile(FunctionPtr Address) {
       }
     }
   }
+
+  soroka::utils::EmitHelloSoroka(M->getFunction(funcEntry.functionId));
+
   llvm::ExitOnError ExitOnErr;
   std::unique_ptr<llvm::orc::LLJIT> jit =
       ExitOnErr(llvm::orc::LLJITBuilder().create());
-
-  soroka::utils::EmitHelloSoroka(M->getFunction(funcEntry.functionId));
 
   llvm::orc::ThreadSafeModule TSM(std::move(M), std::move(Ctx));
   if (auto Err = jit->addIRModule(std::move(TSM))) {

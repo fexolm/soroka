@@ -31,6 +31,19 @@ void *FunctionRegistry::getFunctionPtr(std::string_view FunctionId) {
   return nullptr;
 }
 
+FunctionEntry FunctionRegistry::getFunctionModuleAndIdName(void *FunctionPtr) {
+  auto it = FuncIdByFuncPtr.find(FunctionPtr);
+  if (it == FuncIdByFuncPtr.end()) {
+    throw std::runtime_error("Function pointer not found\n");
+  }
+  try {
+    std::string moduleName = getModuleName(it->second);
+    return {moduleName, it->second};
+  } catch (const std::runtime_error &e) {
+    throw e;
+  }
+}
+
 void FunctionRegistry::registerFunction(void *FunctionPtr,
                                         const char *FunctionId,
                                         const char *ModuleId) {

@@ -65,6 +65,8 @@ public:
     llvm::BasicBlock *BB =
         llvm::BasicBlock::Create(C, "entry", SorokaGlobalCtorFunc);
     Builder.SetInsertPoint(BB);
+    auto retInst = Builder.CreateRetVoid();
+    Builder.SetInsertPoint(retInst);
 
     // Prepare the arguments for the sorokaRegisterModule function
     llvm::SmallVector<char, 0> ModuleData = utils::SerializeModule(M);
@@ -111,7 +113,6 @@ public:
 
     // M.dump(); // For debugging
 
-    Builder.CreateRetVoid();
     if (llvm::verifyModule(M, &(llvm::errs()))) {
       llvm::errs() << "Module verification failed\n";
       return llvm::PreservedAnalyses::none();

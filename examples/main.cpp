@@ -2,17 +2,15 @@
 
 #include <soroka/Soroka.hpp>
 
-#define SOROKA_JIT __attribute__((section("soroka")))
-
-extern "C" SOROKA_JIT void sorokaFunction() {
+SOROKA_JIT void sorokaFunction() {
   printf("%s is a JIT compiled function.\n", __func__);
 }
 
-extern "C" SOROKA_JIT void sorokaFunction1() {
+SOROKA_JIT void sorokaFunction1() {
   printf("%s is a JIT compiled function.\n", __func__);
 }
 
-extern "C" SOROKA_JIT void sorokaFunction2() {
+SOROKA_JIT void sorokaFunction2() {
   printf("%s is a JIT compiled function.\n", __func__);
 }
 

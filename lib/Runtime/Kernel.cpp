@@ -1,4 +1,4 @@
-#include "soroka/Runtime/Function.hpp"
+#include "soroka/Runtime/Kernel.hpp"
 
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
@@ -19,10 +19,10 @@
 #include "Utils.hpp" // For EmitHelloSoroka
 
 namespace soroka {
-Function::Function(void *Address, std::unique_ptr<llvm::orc::LLJIT> jit)
+Kernel::Kernel(void *Address, std::unique_ptr<llvm::orc::LLJIT> jit)
     : Address(Address), jit(std::move(jit)) {}
 
-std::unique_ptr<Function> Function::Compile(FunctionPtr Address) {
+Kernel *Kernel::Compile(void *Address) {
   if (!Address) {
     throw std::runtime_error("Function address is null");
   }
@@ -51,13 +51,11 @@ std::unique_ptr<Function> Function::Compile(FunctionPtr Address) {
   for (auto &F : *M) {
     for (auto &BB : F) {
       if (!BB.getTerminator()) {
-        llvm::errs() << "Basic block without terminator in function: " << F.getName()
-                     << "\n";
+        llvm::errs() << "Basic block without terminator in function: "
+                     << F.getName() << "\n";
       }
     }
   }
-
-  soroka::utils::EmitHelloSoroka(M->getFunction(funcEntry.functionId));
 
   llvm::ExitOnError ExitOnErr;
   std::unique_ptr<llvm::orc::LLJIT> jit =
@@ -73,12 +71,11 @@ std::unique_ptr<Function> Function::Compile(FunctionPtr Address) {
   llvm::errs() << "Function `" << funcEntry.functionId
                << "` compiled and added to JIT.\n";
   auto symbol = ExitOnErr(jit->lookup(funcEntry.functionId));
-
-  return std::make_unique<Function>((FunctionPtr)symbol.getValue(),
-                                    std::move(jit));
+  Kernel *result = new Kernel((void *)symbol.getValue(), std::move(jit));
+  return result;
 }
 
-void Function::operator()() const {
+void Kernel::operator()() const {
   llvm::errs() << "Call function by adress: " << Address << "\n";
   if (Address) {
     FunctionType func = (FunctionType)Address;

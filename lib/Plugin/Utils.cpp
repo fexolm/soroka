@@ -10,8 +10,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/ModuleUtils.h>
 
-namespace soroka {
-namespace utils {
+namespace soroka::utils {
 
 llvm::Function *CreateGlobalCtor(llvm::LLVMContext &C, llvm::Module &M) {
   llvm::Type *Void = llvm::Type::getVoidTy(C);
@@ -79,5 +78,4 @@ void EmitRegisterFunctionCall(llvm::Module &M, llvm::IRBuilder<> &Builder,
   Builder.CreateCall(RegisterFunctionFunc, Args);
 }
 
-} // namespace utils
-} // namespace soroka
+} // namespace soroka::utils
